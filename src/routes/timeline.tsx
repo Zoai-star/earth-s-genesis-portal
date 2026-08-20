@@ -22,7 +22,7 @@ export const Route = createFileRoute("/timeline")({
 });
 
 function TimelinePage() {
-  const [active, setActive] = useState(eras[0].id);
+  const [active, setActive] = useState(eras[0]!.id);
   const refs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {

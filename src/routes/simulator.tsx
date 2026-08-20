@@ -31,7 +31,7 @@ const toggleMeta: { key: ToggleKey; label: string; hint: string }[] = [
 ];
 
 function SimulatorPage() {
-  const [eraId, setEraId] = useState(eras[1].id);
+  const [eraId, setEraId] = useState(eras[1]!.id);
   const [state, setState] = useState<Record<ToggleKey, boolean>>({
     oxygen: false,
     water: true,
