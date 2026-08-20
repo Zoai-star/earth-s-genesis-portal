@@ -39,7 +39,28 @@ function TimelinePage() {
   }, []);
 
   return (
-    <main className="pt-20">
+    <main className="relative pt-20">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute inset-0 space-bg" />
+        <div className="star-field star-drift absolute inset-0 bg-repeat" />
+        <div className="absolute inset-0 aurora" />
+        <div className="comet absolute left-0 top-0 h-px w-40 bg-gradient-to-r from-transparent via-accent to-transparent" />
+        <div
+          className="comet absolute left-0 top-0 h-px w-24 bg-gradient-to-r from-transparent via-primary to-transparent"
+          style={{ animationDelay: "7s", animationDuration: "19s" }}
+        />
+        {Array.from({ length: 14 }).map((_, i) => (
+          <span
+            key={i}
+            className="dust-rise absolute bottom-0 h-1 w-1 rounded-full bg-accent/50"
+            style={{
+              left: `${(i * 7 + 4) % 100}%`,
+              animationDelay: `${i * 1.3}s`,
+              animationDuration: `${14 + (i % 5) * 3}s`,
+            }}
+          />
+        ))}
+      </div>
       <section className="mx-auto max-w-6xl px-5 py-12">
         <p className="font-display text-xs uppercase tracking-[0.4em] text-accent">Category One</p>
         <h1 className="mt-4 max-w-3xl text-4xl sm:text-6xl">The interactive timeline</h1>

@@ -21,46 +21,138 @@ export const Route = createFileRoute("/simulator")({
   component: SimulatorPage,
 });
 
-type ToggleKey = "oxygen" | "water" | "volcanism" | "life";
+type LeverKey = "oxygen" | "water" | "volcanism" | "vegetation";
 
-const toggleMeta: { key: ToggleKey; label: string; hint: string }[] = [
-  { key: "oxygen", label: "Oxygen", hint: "Breathable atmosphere and blue skies" },
-  { key: "water", label: "Liquid water", hint: "Oceans, rain and erosion" },
-  { key: "volcanism", label: "Volcanism", hint: "Heat, ash and fresh crust" },
-  { key: "life", label: "Life", hint: "Photosynthesis and food webs" },
+const levers: { key: LeverKey; label: string; low: string; high: string; hint: string }[] = [
+  {
+    key: "oxygen",
+    label: "Oxygen",
+    low: "Anoxic",
+    high: "Rich air",
+    hint: "Breathable atmosphere and blue skies",
+  },
+  {
+    key: "water",
+    label: "Liquid water",
+    low: "Desert",
+    high: "Ocean world",
+    hint: "Oceans, rain and erosion",
+  },
+  {
+    key: "volcanism",
+    label: "Volcanism",
+    low: "Dormant",
+    high: "Fire fountains",
+    hint: "Heat, ash and fresh crust",
+  },
+  {
+    key: "vegetation",
+    label: "Vegetation",
+    low: "Bare rock",
+    high: "Jungle",
+    hint: "Photosynthesis and food webs",
+  },
 ];
+
+type Env = Record<LeverKey, number> & { warmth: number };
+
+const species: {
+  name: string;
+  emoji: string;
+  cap: number;
+  unit: string;
+  fit: (e: Env) => number;
+}[] = [
+  {
+    name: "Stromatolite mats",
+    emoji: "🦠",
+    cap: 900,
+    unit: "colonies",
+    fit: (e) => (e.water / 100) * (1 - e.oxygen / 220) * (0.5 + e.volcanism / 200),
+  },
+  {
+    name: "Trilobites",
+    emoji: "🦐",
+    cap: 620,
+    unit: "shoals",
+    fit: (e) => (e.water / 100) * (e.oxygen / 100) * bell(e.warmth, 60, 40),
+  },
+  {
+    name: "Dragonflies",
+    emoji: "🦋",
+    cap: 480,
+    unit: "swarms",
+    fit: (e) => (e.oxygen / 100) ** 1.4 * (e.vegetation / 100) * bell(e.warmth, 65, 35),
+  },
+  {
+    name: "Sauropods",
+    emoji: "🦕",
+    cap: 240,
+    unit: "herds",
+    fit: (e) => (e.vegetation / 100) ** 1.2 * (e.water / 100) * bell(e.warmth, 68, 30),
+  },
+  {
+    name: "Woolly mammoths",
+    emoji: "🦣",
+    cap: 180,
+    unit: "herds",
+    fit: (e) => (e.vegetation / 100) * bell(e.warmth, 22, 26) * (e.oxygen / 100),
+  },
+  {
+    name: "Early primates",
+    emoji: "🐒",
+    cap: 320,
+    unit: "troops",
+    fit: (e) =>
+      (e.vegetation / 100) ** 1.3 * (e.oxygen / 100) * bell(e.warmth, 55, 26) * (1 - e.volcanism / 180),
+  },
+];
+
+function bell(value: number, centre: number, width: number) {
+  return Math.max(0, 1 - Math.abs(value - centre) / width);
+}
 
 function SimulatorPage() {
   const [eraId, setEraId] = useState(eras[1]!.id);
-  const [state, setState] = useState<Record<ToggleKey, boolean>>({
-    oxygen: false,
-    water: true,
-    volcanism: true,
-    life: false,
+  const [env, setEnv] = useState<Env>({
+    oxygen: 25,
+    water: 70,
+    volcanism: 60,
+    vegetation: 20,
+    warmth: 55,
   });
-  const [warmth, setWarmth] = useState(55);
 
   const era = eras.find((e) => e.id === eraId)!;
-  const on = Object.values(state).filter(Boolean).length;
+  const set = (key: keyof Env, value: number) => setEnv((s) => ({ ...s, [key]: value }));
+
+  const populations = useMemo(
+    () =>
+      species.map((s) => {
+        const fit = Math.max(0, Math.min(1, s.fit(env)));
+        return { ...s, fit, count: Math.round(fit * s.cap) };
+      }),
+    [env],
+  );
+
+  const total = populations.reduce((a, p) => a + p.count, 0);
 
   const verdict = useMemo(() => {
-    if (!state.water) return "Sterile rock. Without liquid water, chemistry never gets organised.";
-    if (!state.life && state.oxygen)
-      return "An oxygen-rich but empty world — chemically unstable and unlikely to last.";
-    if (state.life && state.oxygen && warmth > 30 && warmth < 80)
-      return "A thriving biosphere. Complex life could plausibly evolve here.";
-    if (state.life && !state.oxygen)
-      return "Microbial world. Slow, anaerobic, and stuck at single cells for a billion years.";
-    if (warmth >= 80) return "Runaway greenhouse. Oceans boil away and the crust bakes.";
-    if (warmth <= 30) return "Snowball planet. Ice reaches the equator and reflects the sun back.";
-    return "A quiet, habitable-looking world waiting on a spark.";
-  }, [state, warmth]);
+    if (env.water < 15) return "Sterile rock. Without liquid water, chemistry never gets organised.";
+    if (env.warmth >= 85) return "Runaway greenhouse. Oceans boil away and the crust bakes.";
+    if (env.warmth <= 15) return "Snowball planet. Ice reaches the equator and reflects the sun back.";
+    if (total === 0) return "Chemically interesting, biologically empty. Nothing has taken hold yet.";
+    if (env.oxygen < 25)
+      return "Microbial world. Slow, anaerobic, and stuck at single cells for a long while.";
+    if (total > 900) return "A thriving biosphere — crowded food webs and room for complex life.";
+    return "A fragile ecosystem. A handful of species cling on, but the margins are thin.";
+  }, [env, total]);
 
   const filter = [
-    state.oxygen ? "saturate(1.15)" : "saturate(0.6)",
-    state.life ? "contrast(1.05)" : "grayscale(0.35)",
-    `brightness(${0.55 + warmth / 180})`,
-    state.volcanism ? "hue-rotate(-12deg)" : "hue-rotate(6deg)",
+    `saturate(${0.55 + env.oxygen / 130})`,
+    `contrast(${0.95 + env.vegetation / 500})`,
+    `brightness(${0.55 + env.warmth / 180})`,
+    `hue-rotate(${-env.volcanism / 8 + env.vegetation / 14}deg)`,
+    `grayscale(${Math.max(0, 0.45 - env.vegetation / 200)})`,
   ].join(" ");
 
   return (
@@ -69,8 +161,8 @@ function SimulatorPage() {
         <p className="font-display text-xs uppercase tracking-[0.4em] text-accent">Category Two</p>
         <h1 className="mt-4 text-4xl sm:text-6xl">Build your own era</h1>
         <p className="mt-5 max-w-xl text-muted-foreground">
-          Choose a period, then pull the levers. Every switch changes the sky, the sea and the odds
-          for life.
+          Choose a period, then slide the levers. Every setting changes the sky, the sea — and how
+          many animals can survive there.
         </p>
       </section>
 
@@ -86,19 +178,40 @@ function SimulatorPage() {
               style={{ filter }}
               className="h-[260px] w-full object-cover transition-all duration-700 sm:h-[440px]"
             />
-            {!state.water && (
-              <div className="absolute inset-0 bg-crust/60 mix-blend-multiply transition-opacity duration-700" />
-            )}
-            {state.volcanism && (
-              <div className="absolute inset-0 bg-gradient-to-t from-ember/40 via-transparent to-transparent" />
-            )}
-            {state.oxygen && (
-              <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-accent/30 to-transparent" />
-            )}
+            <div
+              className="absolute inset-0 bg-crust/70 mix-blend-multiply transition-opacity duration-700"
+              style={{ opacity: Math.max(0, (60 - env.water) / 60) }}
+            />
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-ember/60 via-transparent to-transparent transition-opacity duration-700"
+              style={{ opacity: env.volcanism / 100 }}
+            />
+            <div
+              className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-accent/40 to-transparent transition-opacity duration-700"
+              style={{ opacity: env.oxygen / 100 }}
+            />
+            <div className="pointer-events-none absolute inset-x-0 bottom-12 flex items-end justify-around px-6">
+              {populations
+                .filter((p) => p.count > 0)
+                .map((p, i) => (
+                  <span
+                    key={p.name}
+                    aria-hidden="true"
+                    className="float-slow select-none transition-all duration-500"
+                    style={{
+                      fontSize: `${1.2 + p.fit * 1.6}rem`,
+                      opacity: 0.35 + p.fit * 0.65,
+                      animationDelay: `${i * 0.6}s`,
+                    }}
+                  >
+                    {p.emoji}
+                  </span>
+                ))}
+            </div>
             <div className="absolute bottom-0 left-0 right-0 flex flex-wrap items-center justify-between gap-2 bg-background/70 px-4 py-3 backdrop-blur">
               <span className="font-display text-sm uppercase tracking-[0.25em]">{era.name}</span>
               <span className="text-xs text-muted-foreground">
-                {on}/4 systems active · {warmth}° warmth index
+                {total.toLocaleString()} populations · {env.warmth}° warmth index
               </span>
             </div>
           </div>
@@ -106,6 +219,42 @@ function SimulatorPage() {
             <span className="font-display text-accent">Outcome — </span>
             {verdict}
           </p>
+
+          <h2 className="mt-8 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            Animal census
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {populations.map((p) => (
+              <div
+                key={p.name}
+                className={`rounded-lg border border-border bg-card p-4 transition-opacity duration-500 ${
+                  p.count === 0 ? "opacity-45" : "opacity-100"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 font-display text-sm">
+                    <span aria-hidden="true" className="text-lg">
+                      {p.emoji}
+                    </span>
+                    {p.name}
+                  </span>
+                  <span
+                    className={`font-display text-sm tabular-nums ${
+                      p.count === 0 ? "text-muted-foreground" : "text-accent"
+                    }`}
+                  >
+                    {p.count === 0 ? "extinct" : `${p.count.toLocaleString()} ${p.unit}`}
+                  </span>
+                </div>
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
+                    style={{ width: `${p.fit * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -130,51 +279,52 @@ function SimulatorPage() {
 
           <div className="space-y-3">
             <h2 className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Systems</h2>
-            {toggleMeta.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setState((s) => ({ ...s, [t.key]: !s[t.key] }))}
-                aria-pressed={state[t.key]}
-                className="flex w-full items-center gap-4 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-accent/60"
-              >
-                <span
-                  className={`relative h-10 w-6 shrink-0 rounded-full border border-border transition-colors ${
-                    state[t.key] ? "bg-accent/25" : "bg-secondary"
-                  }`}
+            {levers.map((l) => (
+              <div key={l.key} className="rounded-lg border border-border bg-card p-4">
+                <label
+                  htmlFor={l.key}
+                  className="flex items-center justify-between font-display text-sm"
                 >
-                  <span
-                    className={`absolute left-1/2 h-4 w-4 -translate-x-1/2 rounded-full transition-all duration-300 ${
-                      state[t.key] ? "top-1 bg-accent" : "top-5 bg-muted-foreground"
-                    }`}
-                  />
-                </span>
-                <span>
-                  <span className="block font-display text-sm">{t.label}</span>
-                  <span className="block text-xs text-muted-foreground">{t.hint}</span>
-                </span>
-              </button>
+                  {l.label} <span className="text-accent">{env[l.key]}</span>
+                </label>
+                <p className="mt-0.5 text-xs text-muted-foreground">{l.hint}</p>
+                <input
+                  id={l.key}
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={env[l.key]}
+                  onChange={(e) => set(l.key, Number(e.target.value))}
+                  className="mt-3 w-full accent-[oklch(0.78_0.13_190)]"
+                />
+                <div className="mt-1 flex justify-between text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
+                  <span>{l.low}</span>
+                  <span>{l.high}</span>
+                </div>
+              </div>
             ))}
-          </div>
 
-          <div className="rounded-lg border border-border bg-card p-4">
-            <label
-              htmlFor="warmth"
-              className="flex items-center justify-between font-display text-sm"
-            >
-              Warmth index <span className="text-accent">{warmth}</span>
-            </label>
-            <input
-              id="warmth"
-              type="range"
-              min={0}
-              max={100}
-              value={warmth}
-              onChange={(e) => setWarmth(Number(e.target.value))}
-              className="mt-3 w-full accent-[oklch(0.78_0.13_190)]"
-            />
-            <div className="mt-1 flex justify-between text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
-              <span>Snowball</span>
-              <span>Greenhouse</span>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <label
+                htmlFor="warmth"
+                className="flex items-center justify-between font-display text-sm"
+              >
+                Warmth index <span className="text-accent">{env.warmth}</span>
+              </label>
+              <p className="mt-0.5 text-xs text-muted-foreground">Global temperature balance</p>
+              <input
+                id="warmth"
+                type="range"
+                min={0}
+                max={100}
+                value={env.warmth}
+                onChange={(e) => set("warmth", Number(e.target.value))}
+                className="mt-3 w-full accent-[oklch(0.78_0.13_190)]"
+              />
+              <div className="mt-1 flex justify-between text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
+                <span>Snowball</span>
+                <span>Greenhouse</span>
+              </div>
             </div>
           </div>
         </div>
@@ -182,3 +332,4 @@ function SimulatorPage() {
     </main>
   );
 }
+

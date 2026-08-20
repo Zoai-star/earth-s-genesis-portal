@@ -224,3 +224,127 @@
     transform: scale(1.18) translate3d(-2%, -2%, 0);
   }
 }
+
+/* --- ambient background motion (timeline) --- */
+@keyframes star-drift {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 120px 60px, -140px 80px, 90px -70px, -110px -50px, 130px 40px,
+      -80px 90px, 60px -100px;
+  }
+}
+
+@utility star-drift {
+  animation: star-drift 90s linear infinite alternate;
+}
+
+@keyframes aurora-shift {
+  0% {
+    transform: translate3d(-6%, 0, 0) scale(1.1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate3d(6%, -4%, 0) scale(1.25);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate3d(-6%, 0, 0) scale(1.1);
+    opacity: 0.35;
+  }
+}
+
+@utility aurora {
+  background-image: radial-gradient(
+      ellipse 60% 40% at 25% 30%,
+      oklch(0.78 0.13 190 / 0.35),
+      transparent 70%
+    ),
+    radial-gradient(ellipse 50% 45% at 75% 65%, oklch(0.72 0.16 55 / 0.28), transparent 70%);
+  filter: blur(30px);
+  animation: aurora-shift 26s ease-in-out infinite;
+}
+
+@keyframes comet {
+  0% {
+    transform: translate3d(-10vw, -10vh, 0) rotate(28deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(110vw, 70vh, 0) rotate(28deg);
+    opacity: 0;
+  }
+}
+
+@utility comet {
+  animation: comet 14s linear infinite;
+}
+
+@keyframes dust-rise {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-70vh) translateX(30px);
+    opacity: 0;
+  }
+}
+
+@utility dust-rise {
+  animation: dust-rise 18s linear infinite;
+}
+
+/* --- walking human (humans page) --- */
+@keyframes walk-across {
+  from {
+    transform: translateX(-12%);
+  }
+  to {
+    transform: translateX(112%);
+  }
+}
+
+@utility walk-across {
+  animation: walk-across 12s linear infinite;
+}
+
+@keyframes limb-swing {
+  0%,
+  100% {
+    transform: rotate(26deg);
+  }
+  50% {
+    transform: rotate(-26deg);
+  }
+}
+
+@keyframes limb-swing-alt {
+  0%,
+  100% {
+    transform: rotate(-26deg);
+  }
+  50% {
+    transform: rotate(26deg);
+  }
+}
+
+@keyframes body-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
