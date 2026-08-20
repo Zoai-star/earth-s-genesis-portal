@@ -80,7 +80,7 @@ function HumansPage() {
     return () => observer.disconnect();
   }, []);
 
-  const stage = stages[step];
+  const stage = stages[step]!;
 
   return (
     <main className="pt-20">
